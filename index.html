@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Forest - スマホ禁断 25分集中タイマー</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        forest: {
+                            50: '#f2f9f5',
+                            100: '#e1f2e7',
+                            500: '#2e7d32',
+                            600: '#1b5e20',
+                            800: '#0d3810',
+                            900: '#051b07',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        .timer-circle {
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        .tree-bounce {
+            animation: bounce 2s infinite ease-in-out;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-6px) scale(1.02); }
+        }
+
+        .pulse-subtle {
+            animation: pulse-subtle 3s infinite;
+        }
+
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300">
+
+    <!-- Header -->
+    <header class="w-full border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="trees" class="text-emerald-400 w-7 h-7"></i>
+                <span class="text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
+                    Focus Forest
+                </span>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <button id="bgmToggleBtn" class="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition" title="環境音（BGM）設定">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+                <button id="statsToggleBtn" class="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-emerald-400 transition" title="学習記録・統計">
+                    <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
+                </button>
+                <button id="strictModeBtn" class="px-3 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-semibold flex items-center gap-1 hover:bg-amber-500/20 transition">
+                    <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                    <span>厳格モード: <span id="strictStatus">ON</span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col items-center justify-center p-4 max-w-4xl mx-auto w-full">
+
+        <!-- Mode Selector -->
+        <div class="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 mb-8 max-w-md w-full justify-between">
+            <button id="modeWork" class="flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition bg-emerald-600 text-white shadow-lg shadow-emerald-900/40">
+                集中 (25分)
+            </button>
+            <button id="modeShortBreak" class="flex-1 py-2 px-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
+                小休憩 (5分)
+            </button>
+            <button id="modeLongBreak" class="flex-1 py-2 px-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
+                長休憩 (15分)
+            </button>
+        </div>
+
+        <!-- Timer Main Widget -->
+        <div class="relative flex flex-col items-center justify-center w-full max-w-sm aspect-square my-2">
+            
+            <!-- SVG Progress Ring -->
+            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
+                <!-- Background track -->
+                <circle cx="100" cy="100" r="88" class="text-slate-800 stroke-current" stroke-width="8" fill="transparent"></circle>
+                <!-- Glowing Progress track -->
+                <circle id="timerProgress" cx="100" cy="100" r="88" 
+                        class="text-emerald-500 stroke-current timer-circle" 
+                        stroke-width="8" 
+                        stroke-linecap="round"
+                        fill="transparent"
+                        stroke-dasharray="552.92"
+                        stroke-dashoffset="0"></circle>
+            </svg>
+
+            <!-- Inner Circle Content -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
+                <!-- Tree Visual Growth Phase -->
+                <div id="treeVisual" class="mb-3 text-emerald-400 tree-bounce flex items-center justify-center">
+                    <i data-lucide="sprout" class="w-16 h-16 transition-all duration-700"></i>
+                </div>
+                
+                <!-- Time Display -->
+                <div id="timeDisplay" class="text-5xl font-extrabold tracking-tight font-mono text-slate-100">
+                    25:00
+                </div>
+
+                <!-- Status Message -->
+                <p id="timerStateLabel" class="text-xs text-slate-400 mt-2 font-medium tracking-wider uppercase">
+                    スマホを伏せて集中を開始
+                </p>
+            </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="flex items-center gap-4 mt-8">
+            <button id="startBtn" class="w-36 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold rounded-2xl shadow-xl shadow-emerald-950/50 flex items-center justify-center gap-2 transition active:scale-95">
+                <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+                <span>スタート</span>
+            </button>
+
+            <button id="resetBtn" class="p-3.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-2xl transition active:scale-95" title="リセット">
+                <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Tip Box -->
+        <div class="mt-10 max-w-sm text-center text-slate-400 text-xs px-4 py-3 bg-slate-900/40 rounded-xl border border-slate-800/60 flex items-center gap-2">
+            <i data-lucide="lightbulb" class="w-4 h-4 text-amber-400 shrink-0"></i>
+            <span>タイマー起動中に他のタブやアプリに移動すると、ペナルティが発生します！</span>
+        </div>
+
+    </main>
+
+    <!-- BGM Modal -->
+    <div id="bgmModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold flex items-center gap-2 text-slate-100">
+                    <i data-lucide="headphones" class="w-5 h-5 text-emerald-400"></i>
+                    集中BGM（環境音アンビエント）
+                </h3>
+                <button id="closeBgmBtn" class="text-slate-400 hover:text-slate-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Rain Sound -->
+                <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="cloud-rain" class="w-5 h-5 text-blue-400"></i>
+                        <span class="text-sm font-medium">雨の音 (Rain)</span>
+                    </div>
+                    <input type="range" id="rainVolume" min="0" max="100" value="0" class="w-28 accent-emerald-500">
+                </div>
+
+                <!-- Fire Sound -->
+                <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="flame" class="w-5 h-5 text-orange-400"></i>
+                        <span class="text-sm font-medium">焚き火 (Fireplace)</span>
+                    </div>
+                    <input type="range" id="fireVolume" min="0" max="100" value="0" class="w-28 accent-emerald-500">
+                </div>
+
+                <!-- White Noise -->
+                <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="wind" class="w-5 h-5 text-teal-400"></i>
+                        <span class="text-sm font-medium">ホワイトノイズ</span>
+                    </div>
+                    <input type="range" id="noiseVolume" min="0" max="100" value="0" class="w-28 accent-emerald-500">
+                </div>
+            </div>
+
+            <div class="mt-6 text-right">
+                <button id="saveBgmBtn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-medium transition">
+                    完了
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats & Forest Collection Modal -->
+    <div id="statsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold flex items-center gap-2 text-slate-100">
+                    <i data-lucide="trophy" class="w-5 h-5 text-amber-400"></i>
+                    学習実績と育った森
+                </h3>
+                <button id="closeStatsBtn" class="text-slate-400 hover:text-slate-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Overview Stats Grid -->
+            <div class="grid grid-cols-3 gap-3 mb-6 text-center">
+                <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+                    <p class="text-xs text-slate-400 mb-1">本日の集中時間</p>
+                    <p id="statTodayTime" class="text-xl font-bold text-emerald-400">0 分</p>
+                </div>
+                <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+                    <p class="text-xs text-slate-400 mb-1">植えた木の数</p>
+                    <p id="statTreesCount" class="text-xl font-bold text-emerald-400">0 本</p>
+                </div>
+                <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-800">
+                    <p class="text-xs text-slate-400 mb-1">スマホ離脱誘惑</p>
+                    <p id="statFailCount" class="text-xl font-bold text-rose-400">0 回</p>
+                </div>
+            </div>
+
+            <!-- Forest Collection Grid -->
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">育ちきった木々のコレクション</h4>
+            <div id="forestGrid" class="grid grid-cols-4 gap-3 bg-slate-950/50 p-4 rounded-xl border border-slate-800 min-h-[120px] max-h-48 overflow-y-auto">
+                <p class="col-span-4 text-center text-xs text-slate-500 py-8">まだ木が成長していません。25分の集中を完了させて木を育てましょう！</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distraction Penalty Alert Overlay -->
+    <div id="penaltyOverlay" class="fixed inset-0 bg-rose-950/90 backdrop-blur-md z-50 flex items-center justify-center hidden p-6 text-center">
+        <div class="max-w-md w-full bg-slate-900 border border-rose-500/30 p-6 rounded-2xl shadow-2xl flex flex-col items-center">
+            <div class="w-16 h-16 bg-rose-500/20 text-rose-500 rounded-full flex items-center justify-center mb-4 animate-bounce">
+                <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-100 mb-2">スマホ触り検知！</h2>
+            <p class="text-sm text-slate-300 mb-6">
+                タイマー作動中に別画面・別アプリを開いたため、集中が途切れました。木が少し痛んでしまいました！
+            </p>
+            <button id="resumeFocusBtn" class="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition">
+                反省して集中を再開する
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        const state = {
+            mode: 'work', // work, shortBreak, longBreak
+            durations: {
+                work: 25 * 60,
+                shortBreak: 5 * 60,
+                longBreak: 15 * 60
+            },
+            timeLeft: 25 * 60,
+            timerId: null,
+            isRunning: false,
+            strictMode: true,
+            stats: {
+                todayMinutes: 0,
+                completedTrees: 0,
+                failedDistractions: 0,
+                trees: [] // Array of timestamp/type
+            }
+        };
+
+        // DOM Elements
+        const timeDisplay = document.getElementById('timeDisplay');
+        const timerProgress = document.getElementById('timerProgress');
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const timerStateLabel = document.getElementById('timerStateLabel');
+        const treeVisual = document.getElementById('treeVisual');
+        const modeWork = document.getElementById('modeWork');
+        const modeShortBreak = document.getElementById('modeShortBreak');
+        const modeLongBreak = document.getElementById('modeLongBreak');
+        const penaltyOverlay = document.getElementById('penaltyOverlay');
+        const resumeFocusBtn = document.getElementById('resumeFocusBtn');
+        const strictModeBtn = document.getElementById('strictModeBtn');
+        const strictStatus = document.getElementById('strictStatus');
+
+        // Circle Circumference for SVG timer
+        const CIRCUMFERENCE = 2 * Math.PI * 88;
+
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Load stats from LocalStorage
+        function loadStats() {
+            const saved = localStorage.getItem('focus_forest_stats');
+            if (saved) {
+                try {
+                    state.stats = JSON.parse(saved);
+                } catch(e) {
+                    console.error('Failed to parse saved stats');
+                }
+            }
+            updateStatsUI();
+        }
+
+        function saveStats() {
+            localStorage.setItem('focus_forest_stats', JSON.stringify(state.stats));
+            updateStatsUI();
+        }
+
+        function updateStatsUI() {
+            document.getElementById('statTodayTime').textContent = `${state.stats.todayMinutes} 分`;
+            document.getElementById('statTreesCount').textContent = `${state.stats.completedTrees} 本`;
+            document.getElementById('statFailCount').textContent = `${state.stats.failedDistractions} 回`;
+
+            const grid = document.getElementById('forestGrid');
+            if (state.stats.trees.length === 0) {
+                grid.innerHTML = `<p class="col-span-4 text-center text-xs text-slate-500 py-8">まだ木が成長していません。25分の集中を完了させて木を育てましょう！</p>`;
+            } else {
+                grid.innerHTML = state.stats.trees.map(t => `
+                    <div class="flex flex-col items-center justify-center p-2 bg-slate-900 border border-slate-800 rounded-lg text-emerald-400">
+                        <i data-lucide="${t.icon || 'trees'}" class="w-8 h-8 mb-1"></i>
+                        <span class="text-[10px] text-slate-500">${t.time}</span>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            }
+        }
+
+        // Timer Logic
+        function updateTimerDisplay() {
+            const minutes = Math.floor(state.timeLeft / 60);
+            const seconds = state.timeLeft % 60;
+            const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            timeDisplay.textContent = formatted;
+            document.title = state.isRunning ? `(${formatted}) 集中中 - Focus Forest` : 'Focus Forest';
+
+            // Progress bar
+            const total = state.durations[state.mode];
+            const progress = (total - state.timeLeft) / total;
+            const offset = CIRCUMFERENCE - (progress * CIRCUMFERENCE);
+            timerProgress.style.strokeDashoffset = offset;
+
+            // Tree Growth Stages Visual
+            if (state.mode === 'work') {
+                const percentage = ((total - state.timeLeft) / total) * 100;
+                let iconName = 'sprout';
+                if (percentage >= 75) iconName = 'trees';
+                else if (percentage >= 40) iconName = 'tree-pine';
+                else if (percentage >= 15) iconName = 'tree-deciduous';
+
+                treeVisual.innerHTML = `<i data-lucide="${iconName}" class="w-16 h-16 transition-all duration-700"></i>`;
+                lucide.createIcons();
+            } else {
+                treeVisual.innerHTML = `<i data-lucide="coffee" class="w-16 h-16 text-teal-400"></i>`;
+                lucide.createIcons();
+            }
+        }
+
+        function setMode(newMode) {
+            if (state.isRunning) pauseTimer();
+            state.mode = newMode;
+            state.timeLeft = state.durations[newMode];
+
+            // UI Mode buttons highlight
+            [modeWork, modeShortBreak, modeLongBreak].forEach(btn => {
+                btn.className = "flex-1 py-2 px-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition";
+            });
+
+            if (newMode === 'work') {
+                modeWork.className = "flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition bg-emerald-600 text-white shadow-lg shadow-emerald-900/40";
+                timerStateLabel.textContent = "スマホを伏せて集中を開始";
+            } else if (newMode === 'shortBreak') {
+                modeShortBreak.className = "flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition bg-teal-600 text-white shadow-lg shadow-teal-900/40";
+                timerStateLabel.textContent = "リフレッシュタイム（5分）";
+            } else {
+                modeLongBreak.className = "flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition bg-blue-600 text-white shadow-lg shadow-blue-900/40";
+                timerStateLabel.textContent = "しっかり長休憩（15分）";
+            }
+
+            updateTimerDisplay();
+        }
+
+        function startTimer() {
+            if (state.isRunning) return;
+            state.isRunning = true;
+            
+            startBtn.innerHTML = `<i data-lucide="pause" class="w-5 h-5 fill-current"></i><span>一時停止</span>`;
+            startBtn.classList.remove('from-emerald-500', 'to-teal-600');
+            startBtn.classList.add('from-amber-500', 'to-orange-600');
+            lucide.createIcons();
+
+            state.timerId = setInterval(() => {
+                if (state.timeLeft > 0) {
+                    state.timeLeft--;
+                    updateTimerDisplay();
+                } else {
+                    completeTimer();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            if (!state.isRunning) return;
+            state.isRunning = false;
+            clearInterval(state.timerId);
+
+            startBtn.innerHTML = `<i data-lucide="play" class="w-5 h-5 fill-current"></i><span>再開</span>`;
+            startBtn.classList.remove('from-amber-500', 'to-orange-600');
+            startBtn.classList.add('from-emerald-500', 'to-teal-600');
+            lucide.createIcons();
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            state.timeLeft = state.durations[state.mode];
+            startBtn.innerHTML = `<i data-lucide="play" class="w-5 h-5 fill-current"></i><span>スタート</span>`;
+            lucide.createIcons();
+            updateTimerDisplay();
+        }
+
+        function completeTimer() {
+            pauseTimer();
+            playNotificationSound();
+
+            if (state.mode === 'work') {
+                state.stats.todayMinutes += 25;
+                state.stats.completedTrees += 1;
+                const now = new Date();
+                const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+                state.stats.trees.push({ icon: 'trees', time: timeStr });
+                saveStats();
+
+                timerStateLabel.textContent = "🎉 25分集中達成！木が成長しました！";
+            } else {
+                timerStateLabel.textContent = "休憩終了！次の集中をはじめましょう！";
+            }
+        }
+
+        // Web Audio Synthesizers (No external MP3 files needed)
+        let audioCtx = null;
+        let rainNode = null, fireNode = null, noiseNode = null;
+        let rainGain = null, fireGain = null, noiseGain = null;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function createWhiteNoiseBuffer() {
+            const bufferSize = audioCtx.sampleRate * 2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+            return buffer;
+        }
+
+        function setupAmbientSounds() {
+            initAudioContext();
+            const noiseBuffer = createWhiteNoiseBuffer();
+
+            // Noise (White noise generator)
+            noiseNode = audioCtx.createBufferSource();
+            noiseNode.buffer = noiseBuffer;
+            noiseNode.loop = true;
+            noiseGain = audioCtx.createGain();
+            noiseGain.gain.value = 0;
+            noiseNode.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseNode.start();
+
+            // Rain Effect (Lowpass Filtered White Noise)
+            rainNode = audioCtx.createBufferSource();
+            rainNode.buffer = noiseBuffer;
+            rainNode.loop = true;
+            const rainFilter = audioCtx.createBiquadFilter();
+            rainFilter.type = 'lowpass';
+            rainFilter.frequency.value = 1000;
+            rainGain = audioCtx.createGain();
+            rainGain.gain.value = 0;
+            rainNode.connect(rainFilter);
+            rainFilter.connect(rainGain);
+            rainGain.connect(audioCtx.destination);
+            rainNode.start();
+
+            // Fireplace Effect (Filtered Noise with subtle modulation)
+            fireNode = audioCtx.createBufferSource();
+            fireNode.buffer = noiseBuffer;
+            fireNode.loop = true;
+            const fireFilter = audioCtx.createBiquadFilter();
+            fireFilter.type = 'bandpass';
+            fireFilter.frequency.value = 400;
+            fireGain = audioCtx.createGain();
+            fireGain.gain.value = 0;
+            fireNode.connect(fireFilter);
+            fireFilter.connect(fireGain);
+            fireGain.connect(audioCtx.destination);
+            fireNode.start();
+        }
+
+        function playNotificationSound() {
+            initAudioContext();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+            osc.frequency.exponentialRampToValueAtTime(659.25, audioCtx.currentTime + 0.3); // E5
+            osc.frequency.exponentialRampToValueAtTime(783.99, audioCtx.currentTime + 0.6); // G5
+
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 1.2);
+        }
+
+        // Visibility Change / Tab Switching Detection
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && state.isRunning && state.strictMode && state.mode === 'work') {
+                pauseTimer();
+                state.stats.failedDistractions += 1;
+                saveStats();
+                penaltyOverlay.classList.remove('hidden');
+            }
+        });
+
+        // Event Listeners for Buttons
+        startBtn.addEventListener('click', () => {
+            initAudioContext();
+            if (!rainNode) setupAmbientSounds();
+            
+            if (state.isRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        });
+
+        resetBtn.addEventListener('click', resetTimer);
+
+        modeWork.addEventListener('click', () => setMode('work'));
+        modeShortBreak.addEventListener('click', () => setMode('shortBreak'));
+        modeLongBreak.addEventListener('click', () => setMode('longBreak'));
+
+        resumeFocusBtn.addEventListener('click', () => {
+            penaltyOverlay.classList.add('hidden');
+        });
+
+        strictModeBtn.addEventListener('click', () => {
+            state.strictMode = !state.strictMode;
+            strictStatus.textContent = state.strictMode ? 'ON' : 'OFF';
+            strictModeBtn.classList.toggle('border-amber-500/30', state.strictMode);
+            strictModeBtn.classList.toggle('border-slate-700', !state.strictMode);
+        });
+
+        // BGM Sliders
+        document.getElementById('rainVolume').addEventListener('input', (e) => {
+            if (rainGain) rainGain.gain.value = (e.target.value / 100) * 0.4;
+        });
+        document.getElementById('fireVolume').addEventListener('input', (e) => {
+            if (fireGain) fireGain.gain.value = (e.target.value / 100) * 0.3;
+        });
+        document.getElementById('noiseVolume').addEventListener('input', (e) => {
+            if (noiseGain) noiseGain.gain.value = (e.target.value / 100) * 0.15;
+        });
+
+        // Modals Controls
+        const bgmModal = document.getElementById('bgmModal');
+        const statsModal = document.getElementById('statsModal');
+
+        document.getElementById('bgmToggleBtn').addEventListener('click', () => {
+            initAudioContext();
+            if (!rainNode) setupAmbientSounds();
+            bgmModal.classList.remove('hidden');
+        });
+        document.getElementById('closeBgmBtn').addEventListener('click', () => bgmModal.classList.add('hidden'));
+        document.getElementById('saveBgmBtn').addEventListener('click', () => bgmModal.classList.add('hidden'));
+
+        document.getElementById('statsToggleBtn').addEventListener('click', () => {
+            updateStatsUI();
+            statsModal.classList.remove('hidden');
+        });
+        document.getElementById('closeStatsBtn').addEventListener('click', () => statsModal.classList.add('hidden'));
+
+        // Initialize App
+        loadStats();
+        updateTimerDisplay();
+    </script>
+</body>
+</html>
